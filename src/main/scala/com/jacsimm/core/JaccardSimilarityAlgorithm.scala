@@ -2,6 +2,7 @@ package com.jacsimm.core
 
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
+import com.jacsimm.store.{DocumentsRelationshipStore, Relationship, RelationshipKey}
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
@@ -17,37 +18,39 @@ object JaccardSimilarityAlgorithm{
 
   def calculate(): Unit ={
      val sparkConf = new SparkConf().setMaster("local[*]").setAppName("streaming-kafkaviewdoc")
-     val ssc = new StreamingContext(sparkConf, Seconds(60))
+     val ssc = new StreamingContext(sparkConf, Seconds(5))
 
      val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaParams))
 
-     val tempTables = List[String]
+     val spark = SparkSession.builder.config(ssc.sparkContext.getConf).getOrCreate()
+     import spark.implicits._
+
      message
        .map(record => DocumentView(record.key(), record.value()))
        .foreachRDD(rdd=>{
-         val spark = SparkSession.builder.config(rdd.sparkContext.getConf).getOrCreate()
-         import spark.implicits._
          val documentsViewDF = rdd.toDF()
 
          val documentsViewAndTotal = documentsViewDF
-           .withColumn("totalDocuments", count("document").over(countTotalByDocument()))
+           .withColumn("totalDocuments", count("document").over(countTotalByDocument))
 
          //self join to combine all relation users
-         val calculatedDf = documentsViewAndTotal.as("docViewLeft")
-           .join(documentsViewAndTotal.as("docViewRight"), $"docViewLeft.user" === $"docViewRight.user")
-           .filter($"docViewLeft.document" =!= $"docViewRight.document")
+         val jaccardCalculatedDf = documentsViewAndTotal.as("docViewLeft")
+           .join(documentsViewAndTotal.as("docViewRight"), col("docViewLeft.user") === col("docViewRight.user"))
+           .filter(col("docViewLeft.document") =!= col("docViewRight.document"))
            .groupBy(col("docViewLeft.document").as("docA"), col("docViewRight.document").as("docB"))
            .agg(max("docViewLeft.totalDocuments").as("totalDocA"),
                 max("docViewRight.totalDocuments").as("totalDocB"),
                 count("*").as("totalInCommon"))
-           .withColumn("jaccardIndex", jaccardIndex($"totalInCommon", $"totalDocA", $"totalDocB"))
+           .withColumn("jaccardIndex", jaccardIndex(col("totalInCommon"), col("totalDocA"), col("totalDocB")))
 
-         val tempTableToRdd = "jaccard_table" + rdd.id.toString
-         tempTables +: tempTableToRdd
-         calculatedDf.createOrReplaceTempView(tempTableToRdd)
-      })
+        val jaccardCalculatedAsObj = jaccardCalculatedDf.map(row=>{
+           Relationship(RelationshipKey(row.getAs[String]("docA"), row.getAs[String]("docB")),
+             row.getAs[Float]("jaccardIndex"))
+         }).collect()
 
+         DocumentsRelationshipStore.addAllAndRecalculateIndex(jaccardCalculatedAsObj)
+     })
 
      ssc.start()
      ssc.awaitTermination()
@@ -58,12 +61,10 @@ object JaccardSimilarityAlgorithm{
     Window.partitionBy("document").orderBy("document")
   }
 
-  val jaccardIndex = udf(jaccardIndexFunc)
-
-  private val jaccardIndexFunc = (userInCommon: Int, totalDocA: Int, totalDocB: Int) => Float {
-      val union = totalDocA + totalDocB - userInCommon
-      userInCommon / union
-  }
+  val jaccardIndex = udf((userInCommon: Int, totalDocA: Int, totalDocB: Int) =>  {
+    val union = totalDocA + totalDocB - userInCommon
+    (userInCommon / union).toFloat
+  })
 
 }
 
