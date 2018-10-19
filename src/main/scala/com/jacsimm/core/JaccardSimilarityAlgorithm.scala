@@ -3,10 +3,10 @@ package com.jacsimm.core
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
 import com.jacsimm.store.{DocumentsRelationshipStore, Relationship, RelationshipKey}
-import org.apache.spark.sql.{Column, SparkSession}
+import org.apache.spark.sql.{SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkConf}
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
@@ -18,10 +18,10 @@ object JaccardSimilarityAlgorithm{
 
   def calculate(): Unit ={
      val sparkConf = new SparkConf().setMaster("local[*]").setAppName("streaming-kafkaviewdoc")
-     val ssc = new StreamingContext(sparkConf, Seconds(5))
+     val ssc = new StreamingContext(sparkConf, Seconds(Configuration.intervalReadStream))
 
-     val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
-      ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaParams))
+     val message = KafkaUtils.createDirectStream[Long, String](ssc, LocationStrategies.PreferConsistent,
+      ConsumerStrategies.Subscribe[Long, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
 
      val spark = SparkSession.builder.config(ssc.sparkContext.getConf).getOrCreate()
      import spark.implicits._
@@ -37,7 +37,7 @@ object JaccardSimilarityAlgorithm{
          //self join to combine all relation users
          val jaccardCalculatedDf = documentsViewAndTotal.as("docViewLeft")
            .join(documentsViewAndTotal.as("docViewRight"), col("docViewLeft.user") === col("docViewRight.user"))
-           .filter(col("docViewLeft.document") =!= col("docViewRight.document"))
+           .filter(col("docViewLeft.document") < col("docViewRight.document"))
            .groupBy(col("docViewLeft.document").as("docA"), col("docViewRight.document").as("docB"))
            .agg(max("docViewLeft.totalDocuments").as("totalDocA"),
                 max("docViewRight.totalDocuments").as("totalDocB"),

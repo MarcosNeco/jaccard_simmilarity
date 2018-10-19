@@ -19,6 +19,17 @@
     Para gerenciamento de configurações e seria utilizado o zookeeper para TODAS as configurações possíveis do sistema, seria útil principalmente se o projeto fosse quebrado em serviços menores exigindo assim o sincronismo entre os diferentes componentes. No status atual o zookeeper
     é utilizado apenas como depêndencia do kafka.
 
+   <h4>Sistema de Log</h4>
+    Aqui seria configurado uma biblioteca de log como o log4j, que facilitaria a divisão de tipos de logs, no cenário atual foi utilizado apenas alguns prints simples.
+
+   <h4>Componentização</h4>
+    A quebra do projeto em serviços menores que possam trabalhar de forma isolada é um ponto que eu julgo muito importante como evolução futura do sistema. No cenário atual vejo a necessidade de 4 projetos distintos com papéis bem definidos, são eles:
+      1. Webservice(spring boot) responsável por receber as requisições e controlar as devidas chamadas
+      2. Componente responsável pelo gerenciamento das configurações e sincronismo do, inicialmente utilizando zookeeper
+      3. Componente core, com o algoritmo de calculo de similaridade, spark streaming para o consumo e execução do algoritmo em paralelo
+      4. Componente para armazenamento dos dados distribuído e em memória, inicialmente utilizando o apache ignite ou derrepente o banco memsql(porém esse último precisaria de um estudo maior, já que não conheço muito)
+
+      Obs:Tive alguns problemas com conflitos de bibliotecas, por isso a necessidade de alguns excludes no build.sbt, com a componetização esse problema deixaria de existir.
 <h1>Iniciar Aplicação</h1>
 
 <h3>Zookeeper</h3>
@@ -51,5 +62,5 @@ start kafka server
 create kafka topic
 
 ```
-> .\kafka_2.11\bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic viewdoc
+> .\kafka_2.11\bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic view_doc
 ```
