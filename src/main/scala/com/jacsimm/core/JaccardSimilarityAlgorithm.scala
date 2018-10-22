@@ -29,10 +29,8 @@ object JaccardSimilarityAlgorithm{
        .map(record => {
          val msg  = record.value().split(Configuration.messageSeparator)
          DocumentView(msg(0).toLong, msg(1))
-       })
-       .foreachRDD(rdd=>{
+       }).foreachRDD(rdd=>{
          val documentsViewDF = rdd.toDF()
-
          val documentsViewAndTotal = documentsViewDF
            .withColumn("totalDocuments", count("document").over(countTotalByDocument))
 
@@ -53,10 +51,9 @@ object JaccardSimilarityAlgorithm{
             .union(previousProcessingDF)
             .groupBy("docA", "docB")
             .agg(avg("jaccardIndex").as("jaccardIndex"))
-          recalculatedJaccardIndex.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
-           recalculatedJaccardIndex.show(false)
+          recalculatedJaccardIndex.createOrReplaceGlobalTempView(Configuration.jaccardSimilarityTmpTable)
         }else{
-          jaccardCalculatedDf.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
+          jaccardCalculatedDf.createOrReplaceGlobalTempView(Configuration.jaccardSimilarityTmpTable)
         }
      })
 
