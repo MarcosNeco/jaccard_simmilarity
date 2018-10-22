@@ -13,7 +13,7 @@ val springVersion = "2.0.6.RELEASE"
 libraryDependencies += "org.apache.spark" %% "spark-core" % "2.3.0"
 libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.3.0"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.0"
-libraryDependencies += "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % "2.3.0"
+libraryDependencies += "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % "2.3.0" excludeAll ExclusionRule(organization = "net.jpountz.lz4", name = "lz4")
 libraryDependencies += "org.springframework.boot" % "spring-boot-starter-web" % springVersion excludeAll(ExclusionRule("org.springframework.boot","logback-classic"))
 libraryDependencies += "org.springframework.boot" % "spring-boot-starter-actuator" % springVersion excludeAll(ExclusionRule("org.springframework.boot","logback-classic"))
 libraryDependencies += "org.springframework.boot" % "spring-boot-starter-test" % springVersion % Test

@@ -2,11 +2,10 @@ package com.jacsimm.core
 
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
-import com.jacsimm.store.{DocumentsRelationshipStore, Relationship, RelationshipKey}
-import org.apache.spark.sql.{SparkSession}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
-import org.apache.spark.{SparkConf}
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
@@ -20,14 +19,17 @@ object JaccardSimilarityAlgorithm{
      val sparkConf = new SparkConf().setMaster("local[*]").setAppName("streaming-kafkaviewdoc")
      val ssc = new StreamingContext(sparkConf, Seconds(Configuration.intervalReadStream))
 
-     val message = KafkaUtils.createDirectStream[Long, String](ssc, LocationStrategies.PreferConsistent,
-      ConsumerStrategies.Subscribe[Long, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
+     val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
+      ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
 
      val spark = SparkSession.builder.config(ssc.sparkContext.getConf).getOrCreate()
      import spark.implicits._
 
      message
-       .map(record => DocumentView(record.key(), record.value()))
+       .map(record => {
+         val msg  = record.value().split(Configuration.messageSeparator)
+         DocumentView(msg(0).toLong, msg(1))
+       })
        .foreachRDD(rdd=>{
          val documentsViewDF = rdd.toDF()
 
@@ -43,13 +45,19 @@ object JaccardSimilarityAlgorithm{
                 max("docViewRight.totalDocuments").as("totalDocB"),
                 count("*").as("totalInCommon"))
            .withColumn("jaccardIndex", jaccardIndex(col("totalInCommon"), col("totalDocA"), col("totalDocB")))
+           .select("docA", "docB", "jaccardIndex")
 
-        val jaccardCalculatedAsObj = jaccardCalculatedDf.map(row=>{
-           Relationship(RelationshipKey(row.getAs[String]("docA"), row.getAs[String]("docB")),
-             row.getAs[Float]("jaccardIndex"))
-         }).collect()
-
-         DocumentsRelationshipStore.addAllAndRecalculateIndex(jaccardCalculatedAsObj)
+         if(existHistoricData(spark)) {
+          val previousProcessingDF = spark.sql(s"select * from ${Configuration.jaccardSimilarityTmpTable}")
+          val recalculatedJaccardIndex = jaccardCalculatedDf
+            .union(previousProcessingDF)
+            .groupBy("docA", "docB")
+            .agg(avg("jaccardIndex").as("jaccardIndex"))
+          recalculatedJaccardIndex.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
+           recalculatedJaccardIndex.show(false)
+        }else{
+          jaccardCalculatedDf.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
+        }
      })
 
      ssc.start()
@@ -57,6 +65,9 @@ object JaccardSimilarityAlgorithm{
 
   }
 
+  private def existHistoricData(spark: SparkSession): Boolean ={
+    spark.sqlContext.tableNames().contains(Configuration.jaccardSimilarityTmpTable)
+  }
   private val countTotalByDocument = {
     Window.partitionBy("document").orderBy("document")
   }
