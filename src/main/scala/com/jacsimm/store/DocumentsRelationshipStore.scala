@@ -1,44 +1,42 @@
 package com.jacsimm.store
 
-import scala.collection.mutable
+import com.jacsimm.configuration.Configuration
+import com.jacsimm.model.DocumentsRelation
+import com.jacsimm.session.SparkBuilderSession
+import org.apache.spark.sql.DataFrame
 
 case class RelationshipKey(docA: String, docB: String)
 case class Relationship(relationshipKey: RelationshipKey, indexSimilarity: Float)
 
 object DocumentsRelationshipStore {
 
-  private val documentsRelation = new mutable.HashMap[RelationshipKey, Relationship]()
+  private lazy val spark = getSparkSession()
 
-  def put(documentRelationship: Relationship)={
-    documentsRelation.put(documentRelationship.relationshipKey, documentRelationship)
+  def getSparkSession()={
+    new SparkBuilderSession()
+      .withAppName("spark-store")
+      .build()
   }
 
   def getTopMoreSimilar(top:Int)={
-
+    getAllHistoricalData().orderBy("jaccardIndex")
+      .limit(top)
+    .map(row => DocumentsRelation(row.getAs[Long]("docA"), row.getAs[Long]("docB"), row.getAs[Float]("jaccardIndex")))
+    .collect()
   }
 
-  def addAll(documentsRelationship: Array[Relationship], overwritten:Boolean)={
-    if(overwritten){
-      documentsRelation.clear()
-    }
-    addAllAndRecalculateIndex(documentsRelationship)
+ def storeOrUpdate(dataFrame: DataFrame)= {
+    dataFrame.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
   }
 
-  def addAllAndRecalculateIndex(documentsRelationship: Array[Relationship])= {
-    documentsRelationship.foreach(doc =>{
-      if(documentsRelation.contains(doc.relationshipKey)){
-        val docRelationAlreadySave = documentsRelation.get(doc.relationshipKey)
-        val avgIndexSimilarity = (docRelationAlreadySave.get.indexSimilarity + doc.indexSimilarity) / 2
-        val recalculated = Relationship(doc.relationshipKey, avgIndexSimilarity)
-        documentsRelation.update(recalculated.relationshipKey, recalculated)
-      }else{
-        documentsRelation.put(doc.relationshipKey, doc)
-      }
-    })
+  def getAllHistoricalData(): DataFrame = {
+    spark.sql(s"select * from ${Configuration.jaccardSimilarityTmpTable}")
   }
 
-  def getAllSaved(): mutable.HashMap[RelationshipKey, Relationship] = {
-    documentsRelation.clone()
+  def existHistoricData(): Boolean ={
+    spark.sqlContext.tableNames().contains(Configuration.jaccardSimilarityTmpTable)
   }
+
+
 
 }

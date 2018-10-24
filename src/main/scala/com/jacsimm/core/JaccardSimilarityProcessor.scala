@@ -2,28 +2,30 @@ package com.jacsimm.core
 
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
+import com.jacsimm.session.SparkBuilderSession
+import com.jacsimm.store.DocumentsRelationshipStore
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-object JaccardSimilarityAlgorithm{
+object JaccardSimilarityProcessor{
 
   def main(args: Array[String]): Unit = {
-    calculate()
+    launcher()
   }
 
-  def calculate(): Unit ={
+  val spark = new SparkBuilderSession().build()
+  import spark.implicits._
+
+  def launcher(): Unit ={
+     println("launcher stream application processor...")
      val sparkConf = new SparkConf().setMaster("local[*]").setAppName("streaming-kafkaviewdoc")
      val ssc = new StreamingContext(sparkConf, Seconds(Configuration.intervalReadStream))
 
      val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
-
-     val spark = SparkSession.builder.config(ssc.sparkContext.getConf).getOrCreate()
-     import spark.implicits._
 
      message
        .map(record => {
@@ -45,15 +47,15 @@ object JaccardSimilarityAlgorithm{
            .withColumn("jaccardIndex", jaccardIndex(col("totalInCommon"), col("totalDocA"), col("totalDocB")))
            .select("docA", "docB", "jaccardIndex")
 
-         if(existHistoricData(spark)) {
-          val previousProcessingDF = spark.sql(s"select * from ${Configuration.jaccardSimilarityTmpTable}")
+         if(DocumentsRelationshipStore.existHistoricData()) {
+          val previousProcessingDF = DocumentsRelationshipStore.getAllHistoricalData()
           val recalculatedJaccardIndex = jaccardCalculatedDf
             .union(previousProcessingDF)
             .groupBy("docA", "docB")
             .agg(avg("jaccardIndex").as("jaccardIndex"))
-          recalculatedJaccardIndex.createOrReplaceGlobalTempView(Configuration.jaccardSimilarityTmpTable)
+          DocumentsRelationshipStore.storeOrUpdate(recalculatedJaccardIndex)
         }else{
-          jaccardCalculatedDf.createOrReplaceGlobalTempView(Configuration.jaccardSimilarityTmpTable)
+           DocumentsRelationshipStore.storeOrUpdate(jaccardCalculatedDf)
         }
      })
 
@@ -62,9 +64,7 @@ object JaccardSimilarityAlgorithm{
 
   }
 
-  private def existHistoricData(spark: SparkSession): Boolean ={
-    spark.sqlContext.tableNames().contains(Configuration.jaccardSimilarityTmpTable)
-  }
+
   private val countTotalByDocument = {
     Window.partitionBy("document").orderBy("document")
   }

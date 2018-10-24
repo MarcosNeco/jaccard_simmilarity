@@ -1,3 +1,5 @@
 .idea/
 target/
 project/target/
+zookeeper-3.4.12_server/
+kafka_2.11_server/

@@ -1,3 +1,5 @@
+import sbt.Keys._
+
 import org.apache.ivy.core.module.descriptor.ExcludeRule
 
 lazy val root = (project in file("."))
@@ -21,6 +23,15 @@ libraryDependencies += "com.google.code.gson" % "gson" % "2.8.2"
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.7"
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.9.7"
 dependencyOverrides += "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.9.7"
+
+
+assemblyMergeStrategy in assembly := {
+  case PathList("org", "apache", "spark", "unused", "UnusedStubClass.class") => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+
+}
 
 
 
