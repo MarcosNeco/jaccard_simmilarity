@@ -4,25 +4,20 @@ import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
 import com.jacsimm.session.SparkBuilderSession
 import com.jacsimm.store.DocumentsRelationshipStore
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.FloatType
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 object JaccardSimilarityProcessor{
-
-  def main(args: Array[String]): Unit = {
-    launcher()
-  }
 
   val spark = new SparkBuilderSession().build()
   import spark.implicits._
 
   def launcher(): Unit ={
      println("launcher stream application processor...")
-     val sparkConf = new SparkConf().setMaster("local[*]").setAppName("streaming-kafkaviewdoc")
-     val ssc = new StreamingContext(sparkConf, Seconds(Configuration.intervalReadStream))
+     val ssc = new StreamingContext(spark.sparkContext, Seconds(Configuration.intervalReadStream))
 
      val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
@@ -47,16 +42,12 @@ object JaccardSimilarityProcessor{
            .withColumn("jaccardIndex", jaccardIndex(col("totalInCommon"), col("totalDocA"), col("totalDocB")))
            .select("docA", "docB", "jaccardIndex")
 
-         if(DocumentsRelationshipStore.existHistoricData()) {
           val previousProcessingDF = DocumentsRelationshipStore.getAllHistoricalData()
           val recalculatedJaccardIndex = jaccardCalculatedDf
             .union(previousProcessingDF)
             .groupBy("docA", "docB")
-            .agg(avg("jaccardIndex").as("jaccardIndex"))
+            .agg(avg("jaccardIndex").cast(FloatType).as("jaccardIndex"))
           DocumentsRelationshipStore.storeOrUpdate(recalculatedJaccardIndex)
-        }else{
-           DocumentsRelationshipStore.storeOrUpdate(jaccardCalculatedDf)
-        }
      })
 
      ssc.start()
@@ -71,7 +62,7 @@ object JaccardSimilarityProcessor{
 
   val jaccardIndex = udf((userInCommon: Int, totalDocA: Int, totalDocB: Int) =>  {
     val union = totalDocA + totalDocB - userInCommon
-    (userInCommon / union).toFloat
+    (userInCommon.toFloat / union.toFloat)
   })
 
 }

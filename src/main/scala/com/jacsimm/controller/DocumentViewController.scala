@@ -2,6 +2,8 @@ package com.jacsimm.controller
 
 
 import com.jacsimm.Producer.Producer
+import com.jacsimm.model.DocumentsRelation
+import com.jacsimm.store.DocumentsRelationshipStore
 import org.springframework.http.{HttpHeaders, HttpStatus, ResponseEntity}
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation._
@@ -16,4 +18,10 @@ class DocumentViewController {
       Producer.publish(documentId, userName)
       new ResponseEntity[String](userName + " view doc:" + documentId, new HttpHeaders, HttpStatus.ACCEPTED)
   }
+
+  @RequestMapping(value = Array("/www.globoplay.com/similar"), method = Array(RequestMethod.GET))
+  def getTop10Similar(): java.util.List[DocumentsRelation] ={
+    DocumentsRelationshipStore.getTop10Similar()
+  }
+
 }
