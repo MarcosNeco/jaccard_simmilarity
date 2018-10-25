@@ -1,5 +1,6 @@
 <h1>Arquitetura</h1>
 
+  
    <h2>Provisionamento de ambiente</h2>
     Para o provisionamento da infraestrutura foi escolhido o ansible, que automatiza o processo de configuração
     de infraestrutura, possibilitando inclusive o seu versionamento. Uma outra opção seria o chef, porém após pesquisa cheguei a conclusão de que
@@ -33,6 +34,13 @@
     Obs:Tive alguns problemas com conflitos de bibliotecas, por isso a necessidade de alguns excludes no build.sbt, com a componentização esse problema deixaria de existir.
 
 <h1>Iniciar Aplicação</h1>
+Para provisionamento do ambiente foi criado um shell script que tem a tarefa de extrair os serviços do kafka e zookeeper, além disso ira realizar a subida desses serviços
+para na máquina local e realizar outras tarefas de build do projeto. Para executar o script de provisionamento deve se entrar na pasta e:
+
+    ```cd ./dir_projeto//jaccard_similarity//provisioning.sh run```
+
+
+
 
 <h3>Zookeeper</h3>
 

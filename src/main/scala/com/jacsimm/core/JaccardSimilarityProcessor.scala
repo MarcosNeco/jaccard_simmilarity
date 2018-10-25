@@ -17,6 +17,7 @@ object JaccardSimilarityProcessor{
 
   def launcher(): Unit ={
      println("launcher stream application processor...")
+     DocumentsRelationshipStore.createEmptyHistoricalData()
      val ssc = new StreamingContext(spark.sparkContext, Seconds(Configuration.intervalReadStream))
 
      val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,

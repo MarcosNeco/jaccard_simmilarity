@@ -11,7 +11,7 @@ case class Relationship(relationshipKey: RelationshipKey, indexSimilarity: Float
 
 object DocumentsRelationshipStore {
 
-  private  val spark = getSparkSession()
+  private val spark = getSparkSession()
 
   private val schema = StructType(Array(StructField("docA", LongType),
                                         StructField("docB", LongType),
@@ -20,23 +20,25 @@ object DocumentsRelationshipStore {
   private var topSimilar = Array[DocumentsRelation]()
 
   def storeOrUpdate(dataFrame: DataFrame)= {
-    dataFrame.createOrReplaceTempView(Configuration.jaccardSimilarityTmpTable)
+    createOrRecreateHistoricalTable(dataFrame)
     refreshTop10()
   }
 
   def getAllHistoricalData(): DataFrame = {
-    if(existHistoricData())
-      spark.sql(s"select * from ${Configuration.jaccardSimilarityTmpTable}")
-    else
-      spark.createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+    spark.sql(s"select * from global_temp.${Configuration.jaccardSimilarityTmpTable}")
   }
 
   def getTop10Similar() = {
-      topSimilar.clone().toList.asJava
+    topSimilar.clone().toList.asJava
   }
 
-  def existHistoricData(): Boolean ={
-    spark.sqlContext.tableNames().contains(Configuration.jaccardSimilarityTmpTable)
+  def createEmptyHistoricalData()={
+    val emptyDataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+    createOrRecreateHistoricalTable(emptyDataFrame)
+  }
+
+  def createOrRecreateHistoricalTable(dataFrame: DataFrame): Unit ={
+    dataFrame.createOrReplaceGlobalTempView(Configuration.jaccardSimilarityTmpTable)
   }
 
   private def getSparkSession()={
