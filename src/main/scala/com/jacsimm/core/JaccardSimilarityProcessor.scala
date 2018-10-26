@@ -4,30 +4,25 @@ import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
 import com.jacsimm.session.SparkBuilderSession
 import com.jacsimm.store.DocumentsRelationshipStore
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.FloatType
-import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
-import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.streaming.dstream.InputDStream
 
-object JaccardSimilarityProcessor{
+
+class JaccardSimilarityProcessor(){
 
   val spark = new SparkBuilderSession().build()
   import spark.implicits._
 
-  def launcher(): Unit ={
-     println("launcher stream application processor...")
-     DocumentsRelationshipStore.createEmptyHistoricalData()
-     val ssc = new StreamingContext(spark.sparkContext, Seconds(Configuration.intervalReadStream))
-
-     val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
-      ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
-
-     message
+  def process(message: InputDStream[ConsumerRecord[String, String]]): Unit ={
+    message
        .map(record => {
          val msg  = record.value().split(Configuration.messageSeparator)
          DocumentView(msg(0).toLong, msg(1))
        }).foreachRDD(rdd=>{
+
          val documentsViewDF = rdd.toDF()
          val documentsViewAndTotal = documentsViewDF
            .withColumn("totalDocuments", count("document").over(countTotalByDocument))
@@ -43,19 +38,16 @@ object JaccardSimilarityProcessor{
            .withColumn("jaccardIndex", jaccardIndex(col("totalInCommon"), col("totalDocA"), col("totalDocB")))
            .select("docA", "docB", "jaccardIndex")
 
-          val previousProcessingDF = DocumentsRelationshipStore.getAllHistoricalData()
-          val recalculatedJaccardIndex = jaccardCalculatedDf
+        val previousProcessingDF = DocumentsRelationshipStore.getAllHistoricalData()
+        val recalculatedJaccardIndex = jaccardCalculatedDf
             .union(previousProcessingDF)
             .groupBy("docA", "docB")
             .agg(avg("jaccardIndex").cast(FloatType).as("jaccardIndex"))
-          DocumentsRelationshipStore.storeOrUpdate(recalculatedJaccardIndex)
+        DocumentsRelationshipStore.storeOrUpdate(recalculatedJaccardIndex)
      })
 
-     ssc.start()
-     ssc.awaitTermination()
 
   }
-
 
   private val countTotalByDocument = {
     Window.partitionBy("document").orderBy("document")

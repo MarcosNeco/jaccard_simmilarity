@@ -20,6 +20,7 @@ object DocumentsRelationshipStore {
   private var topSimilar = Array[DocumentsRelation]()
 
   def storeOrUpdate(dataFrame: DataFrame)= {
+    dataFrame.count()
     createOrRecreateHistoricalTable(dataFrame)
     refreshTop10()
   }
