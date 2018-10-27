@@ -2,21 +2,19 @@ package com.jacsimm.core
 
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentView
-import com.jacsimm.session.SparkBuilderSession
 import com.jacsimm.store.DocumentsRelationshipStore
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.FloatType
-import org.apache.spark.streaming.dstream.InputDStream
+import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 
 
 class JaccardSimilarityProcessor(){
 
-  val spark = new SparkBuilderSession().build()
-  import spark.implicits._
-
-  def process(message: InputDStream[ConsumerRecord[String, String]]): Unit ={
+  def process(message: DStream[ConsumerRecord[String, String]], spark: SparkSession): Unit ={
+    import spark.implicits._
     message
        .map(record => {
          val msg  = record.value().split(Configuration.messageSeparator)

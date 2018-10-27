@@ -1,10 +1,39 @@
+<h1>Requisitos</h1>
+
+    *scala 2.11.2
+    *java 1.8+
+    *variáveis de ambiente setado
+
 <h1>Arquitetura</h1>
 
-  
+   As tecnologias que foram utilizadas no projeto são:
+
+        * Scala
+        * SpringBoot
+        * Kafka
+        * Spark
+        * SparkStreming
+
+   As tecnologias foram escolhidas por serem bem conhecidas e utilizadas no mundo de BigData. Principalmente spark e kafka, com o spark conseguimos realizar processamento de uma grande massa de dados utlizando o poder de várias máquinas em paralelo, além disso
+   criar operações de tranformação são simples, já que toda a complexidade de uma aplicação distribuída tem é abstraida por chamadas simples oferecidas pelo spark. Como no ambiente de teste a quantidade de recursos é bem limitada, não foi possível tirar quase nada
+   o poder real de processamento, apenas serviu como meio para os testes.
+       Como sistema de mensageria utilizando stream foi utilizado o kafka, ele tem a característica de ser muito rápido e assim como o spark é um sistema distribuído, onde eu consigo definir partições e localidades de acordo com a característica dos meus daoos,
+   atualmente a chave de cada mensagem publicada é a mesma, porém uma abordagem interessante seria salvar como chave o ip da máquina que produziu a mensagem, dessa forma eu iria talvez conseguir realizar uma distribuição de mensagens por loocalidade.
+       Scala foi escolhida por ser uma linguagem muito concisa, utilizando o poder do paradigma funcional quanto no paradigma orientado a objetos, além disso o spark tem a característica de liberar primeiramente as suas versões em scala e depois
+   nas outras linguagens (java, python e R).
+       SpringBoot foi utilizado para criação de duas chamadas de webService, uma para visualização e outra para retonar os 10 documentos mais similares. Já que ele é super rápido e fácil de subir com quase nenhuma configuração, além de poder ser utilizado diretamente
+   na linguagem scala
+
+   <h2>Fluxo do sistema</h2>
+   Basicamente dois endpoints são publicados utilizando o springBoot, após isso é iniciado o consumo do topico view_doc utilizando no spark uma biblioteca de integração com o karaf, a cada 15 segundos é realizado um novo consumo no tópico, e um novo calculo do
+    coeficiente de similaridade é calculado considerando o agregamento necessário com os dados que foram processados nos streams anteriores. Para manter o estado da minha aplicação eu optei por utlizar um temp table em memória que o spark oferece, porém
+    em um ambiente maior é evidente a necessidade de um banco distribuído em memória, uma possível opção seria o apache ignite que acredito que adequaria bem para esse caso.
+
+
+
    <h2>Provisionamento de ambiente</h2>
-    Para o provisionamento da infraestrutura foi escolhido o ansible, que automatiza o processo de configuração
-    de infraestrutura, possibilitando inclusive o seu versionamento. Uma outra opção seria o chef, porém após pesquisa cheguei a conclusão de que
-    é mais simples e leve para começar a utilizar.
+    Para o provisionamento da infraestrutura foi criado um bash script que fica dentro do projeto, chama-se provioning.sh, basicamente o papel dele é extrair os servidores kafka e zookeeper além de subir os serviços necesários.
+    A ideia era criar um arquivo .bat também para evitar incompatibilidade entre os sistemas operacionais, porém pelo tempo não consegui.
 
 
    <h2>Serviço de Sincronização e Configuração</h2>
@@ -31,46 +60,13 @@
       3. Componente core, com o algoritmo de calculo de similaridade, spark streaming para o consumo e execução do algoritmo em paralelo
       4. Componente para armazenamento dos dados distribuído e em memória, inicialmente utilizando o apache ignite ou derrepente o banco memsql(porém esse último precisaria de um estudo maior, já que não conheço muito)
 
-    Obs:Tive alguns problemas com conflitos de bibliotecas, por isso a necessidade de alguns excludes no build.sbt, com a componentização esse problema deixaria de existir.
+
+
+        Obs:Tive alguns problemas com conflitos de bibliotecas, por isso a necessidade de alguns excludes no build.sbt, com a componentização esse problema deixaria de existir.
 
 <h1>Iniciar Aplicação</h1>
 Para provisionamento do ambiente foi criado um shell script que tem a tarefa de extrair os serviços do kafka e zookeeper, além disso ira realizar a subida desses serviços
 para na máquina local e realizar outras tarefas de build do projeto. Para executar o script de provisionamento deve se entrar na pasta e:
 
-    ```cd ./dir_projeto//jaccard_similarity//provisioning.sh run```
-
-
-
-
-<h3>Zookeeper</h3>
-
-Start server
-
-```
->cd C:\
->.\zookeeper-3.4.12\bin\zkServer.cmd
-```
-
-
-Create Znodes Zookeeper
-
-```
->create /jacsim /configs
->create /jacsim/configs /kafka.server
->create /jacsim/configs/kafka.server "localhost"
-
-```
-
-<h3>Kafka</h3>
-
-start kafka server
-
-```
-> .\kafka_2.11\bin\windows\kafka-server-start.bat \kafka_2.11\config\server.properties
-```
-
-create kafka topic
-
-```
-> .\kafka_2.11\bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic view_doc
-```
+       cd ./dir_projeto/
+        ./provisioning.sh run

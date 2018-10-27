@@ -19,8 +19,8 @@ object ConsumerDocView {
     val message = KafkaUtils.createDirectStream[String, String](ssc, LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](Configuration.topicSet, Configuration.kafkaConsumerParams))
 
-    val processor = new JaccardSimilarityProcessor()
-    processor.process(message)
+    val jaccardProcessor = new JaccardSimilarityProcessor()
+    jaccardProcessor.process(message, spark)
     println("calculate batch stream")
     ssc.start()
     ssc.awaitTermination()
