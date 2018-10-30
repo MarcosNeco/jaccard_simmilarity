@@ -8,14 +8,10 @@ import org.apache.spark.sql.{DataFrame, Row}
 
 import scala.collection.JavaConverters._
 
-case class RelationshipKey(docA: String, docB: String)
-case class Relationship(relationshipKey: RelationshipKey, indexSimilarity: Float)
-
 object DocumentsRelationshipStore{
   private val instance = new DocumentsRelationshipStore()
   def getInstance() = instance
 }
-
 
 class DocumentsRelationshipStore  {
 
