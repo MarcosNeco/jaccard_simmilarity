@@ -1,7 +1,5 @@
 package com.jacsimm.model
 
-import org.springframework.boot.autoconfigure.domain.EntityScan
-
 import scala.beans.BeanProperty
 
 

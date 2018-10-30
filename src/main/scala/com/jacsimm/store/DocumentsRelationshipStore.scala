@@ -1,26 +1,29 @@
 package com.jacsimm.store
 
+import com.jacsimm.Schemas
 import com.jacsimm.configuration.Configuration
 import com.jacsimm.model.DocumentsRelation
 import com.jacsimm.session.SparkBuilderSession
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.types._
+
 import scala.collection.JavaConverters._
+
 case class RelationshipKey(docA: String, docB: String)
 case class Relationship(relationshipKey: RelationshipKey, indexSimilarity: Float)
 
-object DocumentsRelationshipStore {
+object DocumentsRelationshipStore{
+  private val instance = new DocumentsRelationshipStore()
+  def getInstance() = instance
+}
+
+
+class DocumentsRelationshipStore  {
 
   private val spark = getSparkSession()
-
-  private val schema = StructType(Array(StructField("docA", LongType),
-                                        StructField("docB", LongType),
-                                        StructField("jaccardIndex", FloatType)))
 
   private var topSimilar = Array[DocumentsRelation]()
 
   def storeOrUpdate(dataFrame: DataFrame)= {
-    dataFrame.count()
     createOrRecreateHistoricalTable(dataFrame)
     refreshTop10()
   }
@@ -29,12 +32,12 @@ object DocumentsRelationshipStore {
     spark.sql(s"select * from global_temp.${Configuration.jaccardSimilarityTmpTable}")
   }
 
-  def getTop10Similar() = {
+  def getTop10Similar(): java.util.List[DocumentsRelation] = {
     topSimilar.clone().toList.asJava
   }
 
   def createEmptyHistoricalData()={
-    val emptyDataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+    val emptyDataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], Schemas.schemaJaccardCalculated)
     createOrRecreateHistoricalTable(emptyDataFrame)
   }
 

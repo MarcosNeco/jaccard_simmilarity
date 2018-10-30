@@ -1,83 +1,93 @@
 package com.com.jacsimm.core
 
-import java.util
-import java.util.Properties
-
-import com.holdenkarau.spark.testing.StreamingSuiteBase
-import com.jacsimm.configuration.Configuration
+import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import com.jacsimm.Schemas
 import com.jacsimm.core.JaccardSimilarityProcessor
-import com.jacsimm.store.DocumentsRelationshipStore
-import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords}
-import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.record.TimestampType
-import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
-import org.apache.spark.streaming.dstream.DStream
-import org.scalatest.{BeforeAndAfter, FunSuite}
-import org.apache.kafka.streams.test.ConsumerRecordFactory
-import org.apache.kafka.common.serialization.Serdes
-import org.apache.kafka.streams.{StreamsBuilder, StreamsConfig, Topology, TopologyTestDriver}
-import org.apache.kafka.streams.state.Stores
+import com.jacsimm.model.{DocumentView, DocumentsRelation}
+import com.jacsimm.store._
+import org.apache.spark.sql.Row
+import org.mockito.Mockito._
+import org.scalatest.FunSuite
+import org.scalatest.mockito.MockitoSugar
 
-class JaccardSimilarityProcessorTest extends FunSuite with BeforeAndAfter with StreamingSuiteBase{
+class JaccardSimilarityProcessorTest extends FunSuite with
+                      MockitoSugar with DataFrameSuiteBase{
 
-  private val testDriver = null
-  private val store = null
+  private lazy val emptyDocViewDF = spark.createDataFrame(sc.emptyRDD[Row], Schemas.schemaJaccardCalculated)
 
-  private val stringDeserializer = new StringDeserializer
-  private val longDeserializer = new StringDeserializer
-  private val recordFactory = new ConsumerRecordFactory[String, String](new StringSerializer, new StringSerializer)
-
-
-  before{
-
-    val topology = new TopologyTestDriver()
-    topology.addSource("sourceProcessor", "input-topic")
-    topology.addProcessor("aggregator", new Nothing, "sourceProcessor")
-    topology.addStateStore(Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore("aggStore"), Serdes.String, Serdes.Long).withLoggingDisabled, // need to disable logging to allow store pre-populating
-      "aggregator")
-    topology.addSink("sinkProcessor", "result-topic", "aggregator")
-
-    val config = new Properties()
-    config.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "maxAggregation")
-    config.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:1234")
-    config.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String.getClass.getName)
-    config.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.Long.getClass.getName)
-    testDriver = new TopologyTestDriver((topology, config)
-
-    // pre-populate store
-    store = testDriver.getKe("aggStore")
-
-  }
+  private lazy val historicalData = spark.createDataFrame(List(DocumentsRelation(30, 40, 0.8f)))
 
   test("valid two docs with total correlation"){
-    val records = new util.LinkedHashMap[TopicPartition, java.util.List[ConsumerRecord[String, String]]]
+    import sqlContext.implicits._
+    val doc1 = DocumentView(30, "marcos")
+    val doc2 = DocumentView(40, "marcos")
+    val documentsViewRDD = sc.parallelize(List(doc1, doc2)).toDF()
 
-    val topic = Configuration.topicSet.head
-    val record1 = new ConsumerRecord(topic, 1, 0, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, "1", "value1")
-    val record2 = new ConsumerRecord(topic, 1, 1, 0L, TimestampType.CREATE_TIME, 0L, 0, 0, "1", "value2")
-    records.put(new TopicPartition(topic, 1), util.Arrays.asList(record1, record2))
+    val storageDocumentsMocked = mock[DocumentsRelationshipStore]
+    when (storageDocumentsMocked getAllHistoricalData) thenReturn(emptyDocViewDF)
 
-    import org.apache.kafka.common.serialization.Serde
-    import org.apache.kafka.common.serialization.Serdes
-    import org.apache.kafka.streams.kstream.Consumed
-    import org.apache.kafka.streams.kstream.KStream
-    val stringSerde = Serdes.String
-    val longSerde = Serdes.Long
+    val jaccardProcessor = new JaccardSimilarityProcessor(storageDocumentsMocked)
+    val jaccardCalculated = jaccardProcessor.process(documentsViewRDD)
 
-    val textLines = new StreamsBuilder().stream("streams-plaintext-input", Consumed.`with`(stringSerde, stringSerde))
-
-    val processor = new JaccardSimilarityProcessor()
-
-    processor.process(textLines, sparkSession)
-
-    val topSimilar = DocumentsRelationshipStore.getTop10Similar()
-    assertResult(1L )(topSimilar.get(0).getDocumentA)
-    assertResult(2L )(topSimilar.get(0).getDocumentB)
-    assertResult(1F )(topSimilar.get(0).getJaccardIndex)
+    val firstRow = jaccardCalculated.first()
+    val jaccardIndex = firstRow.getAs[Float]("jaccardIndex")
+    val docA = firstRow.getAs[Long]("docA")
+    val docB = firstRow.getAs[Long]("docB")
+    assertResult(1.0F) (jaccardIndex)
+    assertResult(30) (docA)
+    assertResult(40)(docB)
   }
 
-  after{
+  test("valid two docs with 0.5 correlation"){
+    import sqlContext.implicits._
+    val doc1 = DocumentView(30, "marcos")
+    val doc2 = DocumentView(30, "felipe")
+    val doc3 = DocumentView(40, "marcos")
+    val doc4 = DocumentView(40, "joao")
+    val documentsViewRDD = sc.parallelize(List(doc1, doc2, doc3, doc4)).toDF()
 
+    val storageDocumentsMocked = mock[DocumentsRelationshipStore]
+    when (storageDocumentsMocked getAllHistoricalData) thenReturn(emptyDocViewDF)
+
+    val jaccardProcessor = new JaccardSimilarityProcessor(storageDocumentsMocked)
+    val jaccardCalculated = jaccardProcessor.process(documentsViewRDD)
+
+    val firstRow = jaccardCalculated.first()
+    val jaccardIndex = scale(firstRow.getAs[Float]("jaccardIndex"), 2)
+    val docA = firstRow.getAs[Long]("docA")
+    val docB = firstRow.getAs[Long]("docB")
+    assertResult(0.33F) (jaccardIndex)
+    assertResult(30) (docA)
+    assertResult(40)(docB)
+  }
+
+
+  test("valid two docs with historical already save and calcule the media"){
+    import sqlContext.implicits._
+    val doc1 = DocumentView(30, "marcos")
+    val doc2 = DocumentView(30, "felipe")
+    val doc3 = DocumentView(40, "marcos")
+    val doc4 = DocumentView(40, "joao")
+    val documentsViewRDD = sc.parallelize(List(doc1, doc2, doc3, doc4)).toDF()
+
+    val storageDocumentsMocked = mock[DocumentsRelationshipStore]
+
+    when (storageDocumentsMocked getAllHistoricalData) thenReturn (historicalData)
+
+    val jaccardProcessor = new JaccardSimilarityProcessor(storageDocumentsMocked)
+    val jaccardCalculated = jaccardProcessor.process(documentsViewRDD)
+
+    val firstRow = jaccardCalculated.first()
+    val jaccardIndex = scale(firstRow.getAs[Float]("jaccardIndex"), 2)
+    val docA = firstRow.getAs[Long]("docA")
+    val docB = firstRow.getAs[Long]("docB")
+    assertResult(0.57F) (jaccardIndex)
+    assertResult(30) (docA)
+    assertResult(40)(docB)
+  }
+
+  private def scale(value:Float, size:Int)={
+    BigDecimal(value).setScale(size, BigDecimal.RoundingMode.HALF_UP).toFloat
   }
 
 }
