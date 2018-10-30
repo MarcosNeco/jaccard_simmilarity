@@ -93,7 +93,7 @@ para na máquina local e realizar outras tarefas de build do projeto. Para execu
         
 OBS: aqui se tivesse mais tempo criaria um arquivo .bat e um .sh para ambos sistemas operacionais, windows e linux respectivamente.
 
-<h1>Execução<h1>
+<h1>Execução</h1>
 Para inciar a aplicação diretamente pelo projeto, deve ser executado o mais da classe `com.jacsimm.StartApp`.
 Existem dois endpoints para interação com o sistema, uma para realizar a visualização dos documentos e outro para retornar os 10 documentos mais similares.
 
