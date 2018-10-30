@@ -22,7 +22,7 @@ class DocumentViewController {
   @RequestMapping(path = Array("/www.globoplay.com/similar"), method = Array(RequestMethod.GET))
   @ResponseBody
   def getTop10Similar(): java.util.List[DocumentsRelation] ={
-    DocumentsRelationshipStore.getTop10Similar()
+     DocumentsRelationshipStore.getInstance().getTop10Similar()
   }
 
 }

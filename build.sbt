@@ -26,6 +26,8 @@ dependencyOverrides += "com.fasterxml.jackson.module" % "jackson-module-scala_2.
 libraryDependencies += "org.springframework.boot" % "spring-boot-starter-test" % springVersion % Test
 libraryDependencies += "com.holdenkarau" %% "spark-testing-base" % "2.1.0_0.8.0" % Test
 libraryDependencies += "org.apache.kafka" % "kafka-streams-test-utils" % "2.0.0" % Test excludeAll(ExclusionRule("javax.ws.rs","javax.ws.rs-api"))
+libraryDependencies += "org.apache.spark" %% "spark-hive"  % "2.0.0" % Test
+
 
 
 assemblyMergeStrategy in assembly := {
