@@ -3,9 +3,9 @@ import org.apache.ivy.core.module.descriptor.ExcludeRule
 lazy val root = (project in file("."))
   .settings(
     organization := "com.globo.jacsimm",
-    name := "jaccard_similarity",
-    version := "0.1",
-    scalaVersion := "2.11.2"
+    version := "1.0-SNAPSHOT",
+    scalaVersion := "2.11.2",
+    mainClass := Some("com.jacsimm.StartApp")
   )
 
 val springVersion = "2.0.6.RELEASE"
@@ -28,9 +28,16 @@ libraryDependencies += "com.holdenkarau" %% "spark-testing-base" % "2.1.0_0.8.0"
 libraryDependencies += "org.apache.kafka" % "kafka-streams-test-utils" % "2.0.0" % Test excludeAll(ExclusionRule("javax.ws.rs","javax.ws.rs-api"))
 libraryDependencies += "org.apache.spark" %% "spark-hive"  % "2.0.0" % Test
 
-
-
 assemblyMergeStrategy in assembly := {
-  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-  case x => MergeStrategy.first
+  case PathList("META-INF", _@_*) => MergeStrategy.discard
+  case _ => MergeStrategy.first
 }
+
+assemblyJarName in assembly := s"${name.value}-${version.value}.jar"
+
+artifact in(Compile, assembly) := {
+  val art = (artifact in(Compile, assembly)).value
+  art.copy(`classifier` = Some("assembly"))
+}
+assemblyOutputPath in assembly := file("target/jaccard-simmilarity.jar")
+addArtifact(artifact in(Compile, assembly), assembly)
