@@ -28,4 +28,6 @@ object Configuration {
   val jaccardSimilarityTmpTable = "jaccard_similarity_tmp_table"
 
   val messageSeparator = ";"
+
+  val url = "www.globoplay.com"
 }

@@ -14,17 +14,19 @@
         * Spark
         * Spark-kafka-streming
    
-   Para teste foram utilizados as tecnologias
+   Para os teste as tecnologias adotadas:
         
         *Mockito
         *spark-test-base
         *scala-test
 
 
-   As tecnologias foram escolhidas por serem bem conhecidas e utilizadas no mundo de BigData. Principalmente spark e kafka, com o spark conseguimos realizar processamento de uma grande massa de dados utlizando o poder de várias máquinas em paralelo, além disso
-   criar operações de tranformação são simples, já que toda a complexidade de uma aplicação distribuída tem é abstraida por chamadas simples oferecidas pelo spark. Como no ambiente de teste a quantidade de recursos é bem limitada, não foi possível tirar quase nada
-   o poder real de processamento, apenas serviu como meio para os testes.
-       Como sistema de mensageria utilizando stream foi utilizado o kafka, ele tem a característica de ser muito rápido e assim como o spark é um sistema distribuído, onde eu consigo definir partições e localidades de acordo com a característica dos meus daoos,
+   Esse projeto consiste em recomendar documentos similares a um dado documento no estilo "quem viu isso, também viu...". O algoritmo deve se basear no cálculo de covisitação. Isto é, dois documentos são considerados similares se um conjunto grande
+   de usuários visitou os dois documentos. Mais precisamente, a similaridade entre o documento A e B é dada pela quantidade de usuários que visitaram os dois documentos (A e B) dividido pela quantidade de usuários únicos que visitaram qualquer um dos documentos (A ou B).
+   Essa métrica é conhecida como Jaccard similarity coefficient.
+
+   <h5>O sistema é organizado da seguinte maneira:</h5>
+       Como sistema de mensageria utilizando stream foi utilizado o kafka, ele tem a característica de ser muito rápido e assim como o spark é um sistema distribuído, onde eu consigo definir partições e localidades de acordo com a característica dos meus daodos,
    atualmente a chave de cada mensagem publicada é a mesma, porém uma abordagem interessante seria salvar como chave o ip da máquina que produziu a mensagem, dessa forma eu iria talvez conseguir realizar uma distribuição de mensagens por loocalidade.
        Scala foi escolhida por ser uma linguagem muito concisa, utilizando o poder do paradigma funcional quanto no paradigma orientado a objetos, além disso o spark tem a característica de liberar primeiramente as suas versões em scala e depois
    nas outras linguagens (java, python e R).
@@ -39,8 +41,8 @@
    
    <h2>Fluxo do sistema</h2>
    Basicamente dois endpoints são publicados utilizando o springBoot, após isso é iniciado o consumo do topico view_doc utilizando no spark uma biblioteca de integração com o karaf, a cada 15 segundos é realizado um novo consumo no tópico, e um novo calculo do
-    coeficiente de similaridade é calculado considerando o agregamento necessário com os dados que foram processados nos streams anteriores. Para manter o estado da minha aplicação eu optei por utlizar um temp table em memória que o spark oferece, porém
-    em um ambiente maior é evidente a necessidade de um banco distribuído em memória, uma possível opção seria o apache ignite que acredito que adequaria bem para esse caso.
+   coeficiente de similaridade é calculado considerando o agregamento necessário com os dados que foram processados nos streams anteriores. Para manter o estado da minha aplicação eu optei por utlizar um temp table em memória que o spark oferece, porém
+   em um ambiente maior é evidente a necessidade de um banco distribuído em memória, uma possível opção seria o apache ignite que acredito que adequaria bem para esse caso.
 
 
    <h2>Provisionamento de ambiente</h2>
@@ -50,9 +52,8 @@
 
 
    <h2>Serviço de Sincronização e Configuração</h2>
-   Como ferramenta de configuração e sincronização foi escolhido o zookeeper. Para fins desse projeto ele só vai ser utilizado para busca de configurações,
-   porém se a solução fosse evoluir para algo mais robusto como, por exemplo salvar a data que foi disponibilizado.
-s
+   Como ferramenta de configuração e sincronização é utilizado o zookeeper.
+
    <h2>Evoluções</h2>
    <h4>Camada de armazenamento</h4>
    Com uma futura evolução do sistema para atender uma demanda real, o modelo de armazenamento que foi utilizado teria que ser repensado, ou seja, o armazenamento
@@ -75,23 +76,15 @@ s
       4. Componente para armazenamento dos dados distribuído e em memória, inicialmente utilizando o apache ignite ou derrepente o banco memsql(porém esse último precisaria de um estudo maior, já que não conheço muito)
 
 
-   OBS:Tive alguns problemas com conflitos de bibliotecas, por isso a necessidade de alguns excludes no build.sbt, com a componentização esse problema deixaria de existir.
-        
-<h1>Testes</h1>
- Os testes foram focados no algoritmo principal, aquele que vai calcular o coeficiente de similaridade entre os documentos. Ele foi criado de forma isolada para que seja 
- simples de testar utilizando o framework de teste spark. Os testes foram realizados considerando tanto o cenário com vários processamentos de batch de stream quanto
- a primeira execução.
-    
-       Obs: Os testes não são tão rápidos como o de costume em um teste unitário, pois o teste é em cima de um dataframe, logo é nessário o spark realizar a inicialização do seu contexto.
 
-<h1>Iniciar Aplicação</h1>
-Para provisionamento do ambiente foi criado um shell script que tem a tarefa de extrair os serviços do kafka e zookeeper, além disso ira realizar a subida desses serviços
-para na máquina local e realizar outras tarefas de build do projeto. Para executar o script de provisionamento deve se entrar na pasta e executar o seguinte comando:
+   <h1>Iniciar Aplicação</h1>
+    Para provisionamento do ambiente foi criado um shell script que tem a tarefa de extrair os serviços do kafka e zookeeper, além disso ira realizar a subida desses serviços
+    para na máquina local e realizar outras tarefas de build do projeto. Para executar o script de provisionamento deve se entrar na pasta e executar o seguinte comando:
 
        cd ./dir_projeto/
         ./provisioning.sh run
         
-OBS: aqui se tivesse mais tempo criaria um arquivo .bat e um .sh para ambos sistemas operacionais, windows e linux respectivamente.
+   OBS: aqui se tivesse mais tempo criaria um arquivo .bat e um .sh para ambos sistemas operacionais, windows e linux respectivamente.
 
 <h1>Execução</h1>
 Para inciar a aplicação diretamente pelo projeto, deve ser executado o mais da classe `com.jacsimm.StartApp`.
