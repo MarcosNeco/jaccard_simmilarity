@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation._
 @Controller
 class DocumentViewController {
 
-  @PostMapping(Array(s"${Configuration.url}/view/{documentId}"))
+  @PostMapping(Array(s"/${Configuration.url}/view/{documentId}"))
   @ResponseBody
   def view(@RequestParam(name="user", required = true) userName: String, @PathVariable documentId: Long){
       print("document:"+ documentId + "  user:"+userName)
@@ -20,7 +20,7 @@ class DocumentViewController {
       new ResponseEntity[String](userName + " view doc:" + documentId, new HttpHeaders, HttpStatus.ACCEPTED)
   }
 
-  @RequestMapping(path = Array("/www.globoplay.com/similar"), method = Array(RequestMethod.GET))
+  @RequestMapping(path = Array(s"/${Configuration.url}/similar"), method = Array(RequestMethod.GET))
   @ResponseBody
   def getTop10Similar(): java.util.List[DocumentsRelation] ={
      DocumentsRelationshipStore.getInstance().getTop10Similar()

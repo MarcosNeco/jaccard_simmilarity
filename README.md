@@ -93,9 +93,9 @@ Existem dois endpoints para interação com o sistema, uma para realizar a visua
 Para visualização de documento chamar o seguinte endpoint, onde temos dois parâmetros o user(nome do usuário) e o idDocumento deve ser um numero inteiro representando 
 um documento único.
     
-    curl -d"user=user1" http://localhost:8080/www.globoplay.com/view/{idDocumento}
+    curl -d"user=user1" http://localhost:8080/${url}/view/{idDocumento}
 
 Para retornar o os 10 documentos com o maior coeficiente de similaridade chamar o endpoint:
 
-    curl http://localhost:8080/www.globoplay.com/similar/    
+    curl http://localhost:8080/${url}/similar/
          

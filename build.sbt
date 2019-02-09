@@ -2,7 +2,7 @@ import org.apache.ivy.core.module.descriptor.ExcludeRule
 
 lazy val root = (project in file("."))
   .settings(
-    organization := "com.globo.jacsimm",
+    organization := "com.jacsimm",
     version := "1.0-SNAPSHOT",
     scalaVersion := "2.11.2",
     mainClass := Some("com.jacsimm.StartApp")

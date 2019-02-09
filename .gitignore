@@ -3,5 +3,5 @@ target/
 project/target/
 zookeeper-3.4.12_server/
 kafka_2.11_server/
-kafka_2.11.zip
-zookeeper-3.4.12.zip
+*kafka_2.11.zip
+*zookeeper-3.4.12.zip

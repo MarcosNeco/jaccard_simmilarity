@@ -29,5 +29,5 @@ object Configuration {
 
   val messageSeparator = ";"
 
-  val url = "www.globoplay.com"
+  val url = "www.jaccardsimilarity.com"
 }
